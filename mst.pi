@@ -1,0 +1,72 @@
+main =>
+    Edges = [ {'A', 'B', 7}, {'A', 'D', 5},
+              {'B', 'C', 8}, {'B', 'D', 9}, {'B', 'E', 7},
+              {'C', 'E', 5},
+              {'D', 'E', 15}, {'D', 'F', 6},
+              {'E', 'F', 8}, {'E', 'G', 9},
+              {'F', 'G', 11}],
+    mst(Edges,Tree,Cost),
+    writeln($mst(Tree)),
+    writeln($mst_cost(Cost)).
+
+% Kruskal's algorithm for finding minimum-spanning trees
+% mst(Graph,Tree,Cost): If this predicate succeeds, it binds Tree to a minimum 
+% spanning tree of Graph, and Cost to the cost of Tree. This predicate fails if 
+% the graph has disconnected nodes.
+% Graph = [{V1,V2,W12},...],
+
+mst(Graph,Tree) =>
+    mst(Graph,Tree,_).
+
+mst(Graph,Tree,Cost) =>
+    NodesMap = new_map(),                     
+    check_graph(Graph,NodesMap,mst),
+    SGraph = sort(Graph,3),  % sort the edges by weight
+    Nodes = keys(NodesMap),
+    kruskal(Nodes,SGraph,Tree,Cost).
+
+check_graph([],_NodesMap,_Source) => true.
+check_graph([{V1,V2,W}|Graph],NodesMap,Source), ground(V1), ground(V2), number(W) =>
+    (map(NodesMap) -> NodesMap.put(V1,1), NodesMap.put(V2,1); true),
+    check_graph(Graph,NodesMap,Source).
+check_graph([{V1,V2,W}|_],_NodesMap,Source) =>
+    (ground(V1) -> true; handle_exception($ground_term_expected(V1),Source)),
+    (ground(V2) -> true; handle_exception($ground_term_expected(V2),Source)),
+    (number(W) -> true; handle_exception($number_expected(W),Source)).
+check_graph([Vertex|_],_NodesMap,Source) =>    
+    handle_exception($array_expected(Vertex),Source).
+check_graph(Graph,_NodesMap,Source) =>    
+    handle_exception($list_expected(Graph),Source).
+ 
+kruskal(Nodes,Edges,Tree,Cost) =>
+    Forest = new_map(),
+    foreach (Node in Nodes)
+        Forest.put(Node,Node)  % the parent of Node is Node itself
+    end,
+    Size = len(Nodes),
+    add_edges(Edges,Size-1,Forest,Tree,[],0,Cost).
+
+add_edges(_,0,_Forest,Tree,TreeR,Cost0,Cost) =>
+    Tree = TreeR, Cost = Cost0.
+add_edges([Edge@{V1,V2,W}|Edges],Count,Forest,Tree,TreeR,Cost0,Cost) =>
+    Root1 = forest_find_root(Forest,V1),
+    Root2 = forest_find_root(Forest,V2),
+    if Root1 !== Root2 then
+        Tree = [Edge|Tree1],
+        Cost1 = Cost0+W,
+        Count1 = Count-1,
+        Forest.put(Root1,V2)    % the parent of Root1 is V2
+    else
+        Tree = Tree1,
+        Cost1 = Cost0,
+        Count1 = Count
+    end,
+    add_edges(Edges,Count1,Forest,Tree1,TreeR,Cost1,Cost).
+
+forest_find_root(Forest,V) = Root =>
+    Parent = Forest.get(V),
+    if Parent == V then
+        Root = V
+    else
+        Root = forest_find_root(Forest,Parent)
+    end.
