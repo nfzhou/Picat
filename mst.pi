@@ -55,7 +55,7 @@ add_edges([Edge@{V1,V2,W}|Edges],Count,Forest,Tree,TreeR,Cost0,Cost) =>
         Tree = [Edge|Tree1],
         Cost1 = Cost0+W,
         Count1 = Count-1,
-        Forest.put(Root1,V2)    % the parent of Root1 is V2
+        Forest.put(Root1,Root2)    % the parent of Root1 is Root2
     else
         Tree = Tree1,
         Cost1 = Cost0,
