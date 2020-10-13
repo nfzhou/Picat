@@ -14,6 +14,6 @@ lp-contest: Solutions to the ICLP programming contest problems.
 
 PicatScripts: scripts for manipulating files and directories.
 
-xcsp: A XCSP interpreter in Picat.
+xcsp: An XCSP interpreter in Picat.
 
 In addition, a large collection of Picat programs can be found at https://github.com/hakank/hakank/tree/master/picat.
