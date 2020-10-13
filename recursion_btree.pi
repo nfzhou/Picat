@@ -8,7 +8,7 @@
 
 */
 %% to run, type the command
-%%     picat recursive_functions
+%%     picat recursion_btree
 %%
 
 main =>
