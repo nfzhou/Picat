@@ -55,8 +55,8 @@ my_gcd(0,Y) = Y.
 my_gcd(X,0) = X.
 my_gcd(X,Y) = my_gcd(Y,rem(X,Y)).
 
+fib(0) = succ(0).
 fib(1) = succ(0).
-fib(2) = succ(0).
 fib(X) = add(fib(pred(X)),fib(pred(pred(X)))).
 
 %% predicates
@@ -73,8 +73,3 @@ gt(X,Y) => lt(Y,X).
 ge(X,Y) => le(Y,X).
 
 eq(X,Y) => ge(X,Y), ge(Y,X).
-
-   
-   
-
-
