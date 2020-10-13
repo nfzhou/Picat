@@ -1,0 +1,63 @@
+/*
+   In this practice, we write recursive functions on lists. The
+   empty list is denoted as []. The unification L = [H|T] can be
+   utilized to extract the head, H, and the tail, T, from the list
+   L or construct a list from the head and the tail. The list of
+   elements [E1,E2,...,En] is the same as [E1|[E2|...|[En|[]]...]].
+   For example, the list [a,b,c] is the same as [a|[b|c|[]]].
+
+   The following functions are defined in Picat. They can be easily
+   translated into  any other functional programming language, such
+   as Haskell and F#.
+*/
+%%
+main =>
+   L = [a,b,c,a,b],
+   writef("first(%w) = %w\n", L, my_first(L)),
+   writef("last(%w) = %w\n", L, my_last(L)),
+   if contains(L,a) then
+       writef("%w contains %w.\n", L, a)
+   end,
+   writef("find_first_of(%w,%w) = %w\n", L, b, find_first_of(L,b)),
+   writef("find_last_of(%w,%w) = %w\n", L, b, find_last_of(L,b)),
+   writef("kth(%w,%w) = %w\n", L, 3, kth_elm(L,3)),
+   writef("len(%w) = %w\n", L, my_len(L)),
+   writef("reverse(%w) = %w\n", L, my_reverse(L)).
+
+my_first([H|_]) = H.
+
+my_last([X]) = X.
+my_last([_|T]) = my_last(T).
+
+contains([E|_],E) => true.
+contains([_|T],E) => contains(T,E).
+
+find_first_of(L,E) = find_first_of(L,E,1).
+
+find_first_of([E|_],E,I) = I.
+find_first_of([_|T],E,I) = find_first_of(T,E,I+1).
+find_first_of([],_E,_I) = -1.
+
+find_last_of(L,E) = find_last_of(L,E,1,-1).
+
+find_last_of([],_E,_I,PreI) = PreI.
+find_last_of([E|T],E,I,_PreI) = find_last_of(T,E,I+1,I).
+find_last_of([_|T],E,I,PreI) = find_last_of(T,E,I+1,PreI).
+
+% the kth_elm(L,K) is the same as K[K]
+kth_elm([E|_],1) = E.
+kth_elm([_|T],K) = kth_elm(T,K-1).
+
+my_len([]) = 0.
+my_len([_|T]) = my_len(T)+1.
+
+my_reverse([]) = [].
+my_reverse([H|T]) = my_reverse(T) ++ [H].
+
+sorted([]) => true.
+sorted([_]) => true.
+sorted([X,Y|L]) =>
+    X @=< Y,
+    sorted([Y|L]).
+
+

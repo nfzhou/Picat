@@ -1,0 +1,11 @@
+import mip.
+
+main =>
+    S = [1,2,7,14,49,98,343,686,2409,2793,16808,17206,117705,117993],
+    T = 138457,
+    N = len(S),
+    Vars = new_list(N),
+    Vars :: 0..1,
+    sum([B*Elm : {B,Elm} in zip(Vars,S)]) #= T,
+    solve([cbc],Vars),
+    println(Vars).

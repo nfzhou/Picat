@@ -1,0 +1,22 @@
+import sat.
+
+main =>
+    G = graph(),
+    N = len(G),
+    Vars = new_list(N),
+    Vars :: 0..1,
+    foreach (U in 1..N-1, V in U+1..N)
+       if G[U,V] == 1 then
+           Vars[U] #\/ Vars[V]
+       end
+    end,
+    solve($[min(sum(Vars))],Vars),
+    print(Vars).
+
+graph = 
+    {{0,1,0,0,1,0},
+     {1,0,1,0,1,0},
+     {0,1,0,1,0,0},
+     {0,0,1,0,1,1},
+     {1,1,0,1,0,0},
+     {0,0,0,1,0,0}}.

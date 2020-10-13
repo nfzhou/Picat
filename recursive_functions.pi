@@ -1,0 +1,80 @@
+/*
+   We begin with a computer that has only one constant, 0, and
+   two functions, succ(X) and pred(X), and gradually empower the
+   computer by adding more functions defined with recursion.
+
+   These functions are defined in Picat. They can be easily
+   translated into any other programming language
+*/
+%% to run, type the command
+%%     picat recursive_functions
+%%
+main =>
+   X = succ(succ(succ(0))),   % 3
+   Y = succ(succ(0)),         % 2
+   printf("%w + %w = %w\n", X, Y, add(X,Y)),
+   printf("%w - %w = %w\n", X, Y, sub(X,Y)),   
+   printf("%w * %w = %w\n", X, Y, mul(X,Y)),
+   printf("%w / %w = %w\n", X, Y, my_div(X,Y)),
+   printf("%w %% %w = %w\n", X, Y, my_rem(X,Y)),
+   printf("%w ^ %w = %w\n", X, Y, exp(X,Y)),
+   printf("%w! = %w\n", X, fact(X)),
+   printf("gcd(%w,%w) = %w\n", X, Y, my_gcd(X,Y)),
+   printf("fib(%w) = %w\n", X, fib(X)).
+
+succ(X) = X+1.
+
+pred(X) = X-1.
+
+add(0,Y) = Y.
+add(X,Y) = succ(add(pred(X),Y)).
+
+sub(X,0) = X.
+sub(X,Y) = sub(pred(X),pred(Y)).
+
+mul(0,_) = 0.
+mul(X,Y) = add(mul(pred(X),Y),Y).
+
+% name it my_div, because div/2 is a built-in in Picat
+my_div(X,Y) = 0, lt(X,Y) => true.
+my_div(X,Y) = succ(my_div(sub(X,Y),Y)).
+
+% rem/2 is a built-in function
+my_rem(X,Y) = X, lt(X,Y) => true.   % if X < Y
+my_rem(X,Y) = my_rem(sub(X,Y),Y).
+
+exp(_,0) = succ(0).
+exp(X,Y) = mul(X,exp(X,pred(Y))).
+
+% factorial/1 is a built-in function
+fact(0) = 1.
+fact(X) = mul(X,fact(pred(X))).
+
+% gcd/2 is a built-in function
+my_gcd(0,Y) = Y.
+my_gcd(X,0) = X.
+my_gcd(X,Y) = my_gcd(Y,rem(X,Y)).
+
+fib(1) = succ(0).
+fib(2) = succ(0).
+fib(X) = add(fib(pred(X)),fib(pred(pred(X)))).
+
+%% predicates
+% X <= Y
+le(0,_) => true.
+le(_,0) => fail.
+le(X,Y) => le(pred(X),pred(Y)).
+
+% X < Y
+lt(X,Y) => le(succ(X),Y).
+
+gt(X,Y) => lt(Y,X).
+
+ge(X,Y) => le(Y,X).
+
+eq(X,Y) => ge(X,Y), ge(Y,X).
+
+   
+   
+
+
