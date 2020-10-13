@@ -7,7 +7,7 @@
    translated into any other programming language
 */
 %% to run, type the command
-%%     picat recursive_functions
+%%     picat recursion_arith
 %%
 main =>
    X = succ(succ(succ(0))),   % 3
