@@ -2,13 +2,13 @@
    In this practice, we write recursive functions on lists. The
    empty list is denoted as []. The unification L = [H|T] can be
    utilized to extract the head, H, and the tail, T, from the list
-   L or construct a list from the head and the tail. The list of
+   L, or construct a list from the head and the tail. The list of
    elements [E1,E2,...,En] is the same as [E1|[E2|...|[En|[]]...]].
    For example, the list [a,b,c] is the same as [a|[b|c|[]]].
 
-   The following functions are defined in Picat. They can be easily
-   translated into  any other functional programming language, such
-   as Haskell and F#.
+   The following functions/predicates are defined in Picat. Except for
+   the non-deterministic predicates, they can be easily translated into
+   any other functional programming language, such as Haskell and F#.
 */
 %%
 main =>
@@ -21,8 +21,9 @@ main =>
    writef("find_first_of(%w,%w) = %w\n", L, b, find_first_of(L,b)),
    writef("find_last_of(%w,%w) = %w\n", L, b, find_last_of(L,b)),
    writef("kth(%w,%w) = %w\n", L, 3, kth_elm(L,3)),
-   writef("len(%w) = %w\n", L, my_len(L)),
-   writef("reverse(%w) = %w\n", L, my_reverse(L)).
+   writef("len(%w) = %w\n", L, my_naive_len(L)),
+   writef("reverse(%w) = %w\n", L, my_naive_reverse(L)),
+   writef("sort(%w) = %w\n", L, merge_sort(L)).   
 
 my_first([H|_]) = H.
 
@@ -44,20 +45,77 @@ find_last_of([],_E,_I,PreI) = PreI.
 find_last_of([E|T],E,I,_PreI) = find_last_of(T,E,I+1,I).
 find_last_of([_|T],E,I,PreI) = find_last_of(T,E,I+1,PreI).
 
-% the kth_elm(L,K) is the same as K[K]
+% the kth_elm(L,K) is the same as L[K]
 kth_elm([E|_],1) = E.
 kth_elm([_|T],K) = kth_elm(T,K-1).
 
-my_len([]) = 0.
-my_len([_|T]) = my_len(T)+1.
+% len(L)
+my_naive_len([]) = 0.
+my_naive_len([_|T]) = my_naive_len(T)+1.
 
-my_reverse([]) = [].
-my_reverse([H|T]) = my_reverse(T) ++ [H].
+my_len(L) = Len => my_len(L,0,Len).
 
-sorted([]) => true.
-sorted([_]) => true.
-sorted([X,Y|L]) =>
+my_len([],Acc,Len) => Len = Acc.
+my_len([_|T],Acc,Len) => my_len(T,Acc+1,Len).
+
+% sum(L)
+my_sum(L) = Sum => my_sum(L,0,Sum).
+
+my_sum([],Acc,Sum) => Sum = Acc.
+my_sum([H|T],Acc,Sum) => my_sum(T,Acc+H,Sum).
+
+% reverse(L)
+my_naive_reverse([]) = [].
+my_naive_reverse([H|T]) = my_naive_reverse(T) ++ [H].
+
+my_rev(L) = R => my_rev(L,[],R).
+
+my_rev([],Acc,R) => R = Acc.
+my_rev([H|T],Acc,R) => my_rev(T,[H|Acc],R).
+
+% as-pattern
+my_sorted([X|L@[Y|_]]) =>
     X @=< Y,
-    sorted([Y|L]).
+    my_sorted(L).
+my_sorted(_) => true.
+
+insertion_sort(L) = Sorted =>
+    insertion_sort(L,[],Sorted).
+
+insertion_sort([],Sorted0,Sorted) => Sorted = Sorted0.
+insertion_sort([H|T],Sorted0,Sorted) =>
+    Sorted1 = insert_ordered(Sorted0,H),
+    insertion_sort(T,Sorted1,Sorted).
+
+qsort([]) = [].
+qsort([H|T]) = qsort([E : E in T, E =< H]) ++
+               [H] ++
+               qsort([E : E in T, E > H]).
+
+merge_sort([]) = [].
+merge_sort([X]) = [X].
+merge_sort(L) = SL => split(L,L1,L2), SL = merge(merge_sort(L1),merge_sort(L2)).
+
+split([X,Y|Zs],L1,L2) => L1 = [X|LL1], L2 = [Y|LL2], split(Zs,LL1,LL2).
+split(Zs,L1,L2) => L1 = Zs,L2 = [].
+
+merge([],Ys) = Ys.
+merge(Xs,[]) = Xs.
+merge([X|Xs],Ys@[Y|_]) = [X|Zs], X < Y => Zs = merge(Xs,Ys).  % Ys@[Y|_] is an as-pattern
+merge(Xs,[Y|Ys]) = [Y|Zs] => Zs = merge(Xs,Ys).
+
+my_member(X,[H|_]) ?=> X = H.
+my_member(X,[_|T]) => my_member(X,T).
+
+my_select(X,[H|T],R) ?=> X = H, R = T.
+my_select(X,[H|T],R) =>
+    R = [H|R1],
+    my_select(X,T,R1).
+
+my_permutation([],P) => P = [].
+my_permutation(L,P) =>
+    P = [X|P1],
+    my_select(X,L,R),
+    my_permutation(R,P1).
 
 
