@@ -1,0 +1,62 @@
+/* An evaluator for the grammar in Picat using tabling.
+
+    E -> E + T | E - T | T
+    T -> T * F | T / F | F
+    F -> ( E ) | a
+
+   Exercise: Write an evaluator in Picat for the left-recursion-free grammar:
+
+    E -> T E'
+    E' -> + T E' | - T E' | e
+
+    T -> F T'
+    T' -> * F T' | / F T' | e
+
+    F -> ( E ) | a
+
+    As the grammar contains no left recursion, no tabling is needed.
+*/
+
+main ?=>
+    exp([2,'*','(',1,'+',3,')'],[],Val),
+    writeln(Val).
+main =>
+    writeln(not_accepted).
+    
+% E -> E + T | E - T | T
+table
+exp(Si,So,Val) ?=>
+    exp(Si,S1,Val1),
+    S1 = ['+'|S2],
+    term(S2,So,Val2),
+    Val = Val1+Val2.
+exp(Si,So,Val) ?=>
+    exp(Si,S1,Val1),
+    S1 = ['-'|S2],
+    term(S2,So,Val2),
+    Val = Val1-Val2.
+exp(Si,So,Val) =>
+    term(Si,So,Val).
+
+% T -> T * F | T / F | F
+table
+term(Si,So,Val) ?=>
+    term(Si,S1,Val1),
+    S1 = ['*'|S2],
+    factor(S2,So,Val2),
+    Val = Val1*Val2.
+term(Si,So,Val) ?=>
+    term(Si,S1,Val1),
+    S1 = ['/'|S2],
+    factor(S2,So,Val2),
+    Val = Val1 / Val2.
+term(Si,So,Val) ?=>
+    factor(Si,So,Val).
+    
+% F -> ( E ) | a
+factor(['('|Si],So,Val) =>
+    exp(Si,S1,Val),
+    S1 = [')'|So].
+factor([Num|Si],So,Val), number(Num) => So = Si, Val = Num.
+factor([Token|_Si],_So,_Val) =>
+    throw($number_expected(Token)).
