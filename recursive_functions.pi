@@ -27,7 +27,7 @@ succ(X) = X+1.
 pred(X) = X-1.
 
 add(0,Y) = Y.
-add(X,Y) = succ(add(pred(X),Y)).
+add(X,Y) = add(pred(X),succ(Y)).
 
 sub(X,0) = X.
 sub(X,Y) = sub(pred(X),pred(Y)).
