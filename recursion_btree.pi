@@ -1,11 +1,10 @@
 /*
-  An empty tree is represented as the atom nil, and
+  The empty tree is represented by the atom nil, and
   a binary tree node is represented as a three-element tuple,
   where the first element is the node value, the second element
   is the left child, and the third element is the right child.
   Here are a few example functions and predicates on binary
   trees written in Picat.
-
 */
 %% to run, type the command
 %%     picat recursion_btree
