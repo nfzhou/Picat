@@ -1,0 +1,47 @@
+/* Financial quantities in American notation have a leading dollar
+sign ($), an optional string of asterisks (*), a string of decimal
+digits, and an optional fractional part consisting of a decimal point
+(.) and two decimal digits. The string of digits to the left of the
+decimal point may consist of a single zero (0). Otherwise it must not
+start with a zero. If there are more than three digits to the left of
+the decimal point, groups of three (counting from the right) must be
+separated by commas (,). Example: $**1,234,567.89.
+*/
+
+main =>
+    fq("$****100,000,000.99",[]),
+    println(accept).
+
+fq(['$'|Si],So) =>
+    fq_after_dollar(Si,So).
+
+fq_after_dollar(['*'|Si],So) =>
+    fq_after_dollar(Si,So).
+fq_after_dollar(Si,So) =>
+    fq_number(Si,So).
+
+fq_number(Si,So) =>
+    fq_integer(Si,S1),
+    fq_fraction(S1,So).
+
+fq_integer([0|Si],So) => So = Si.
+fq_integer([D|Si],So), ascii_digit(D) =>
+    fq_integer_before_triplets(Si,So).
+
+fq_integer_before_triplets([D1,D2|Si],So), ascii_digit(D1), ascii_digit(D2) =>
+    fq_integer_triplets(Si,So).
+fq_integer_before_triplets([D1|Si],So), ascii_digit(D1) =>
+    fq_integer_triplets(Si,So).
+fq_integer_before_triplets(Si,So) =>
+    fq_integer_triplets(Si,So).
+
+fq_integer_triplets([',',D1,D2,D3|Si],So),
+    ascii_digit(D1),
+    ascii_digit(D2),
+    ascii_digit(D3)
+=>
+    fq_integer_triplets(Si,So).
+fq_integer_triplets(Si,So) => Si = So.
+
+fq_fraction(['.',D1,D2|Si],So), ascii_digit(D1), ascii_digit(D2) => So = Si.
+fq_fraction(Si,So) => So = Si.
