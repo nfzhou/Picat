@@ -33,7 +33,7 @@ main([File]) =>
     end.
 
 % use Picat's built-in tokenizer. Need to translate the tokens because
-% A substring such as "++" and "--" is treated as a single token.
+% a substring such as "++" and "--" is treated as a single token.
 tokenize(File,S) =>
     Tokens = read_file_tokens(File),
     translate_tokens(Tokens,S).
