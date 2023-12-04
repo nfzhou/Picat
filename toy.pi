@@ -1,0 +1,130 @@
+/***********************************************************************
+An interpreter implemented in Picat for a toy language specified below:
+
+Program:
+	Assignment*
+
+Assignment:
+	Identifier = Exp;
+
+Exp: 
+	Exp + Term | Exp - Term | Term
+
+Term:
+	Term * Fact  | Fact
+
+Fact:
+	( Exp ) | - Fact | + Fact | Literal | Identifier
+
+Identifier:
+     	Letter [Letter | Digit]*
+
+Letter:
+	a|...|z|A|...|Z|_
+
+Literal:
+	0 | NonZeroDigit Digit*
+		
+NonZeroDigit:
+	1|...|9
+
+Digit:
+	0|1|...|9
+
+by Neng-Fa Zhou, December 4, 2023.
+***********************************************************************/
+main([File]) =>
+    tokenize(File,S),
+    SymTab = new_map(),
+    interp(S,[],SymTab),
+    foreach ((Key=Val) in SymTab)
+        printf("%w = %w\n",Key,Val)
+    end.
+
+% use Picat's built-in tokenizer. Need to translate the tokens because
+% A substring such as "++" and "--" is treated as a single token.
+tokenize(File,S) =>
+    Tokens = read_file_tokens(File),
+    translate_tokens(Tokens,S).
+
+translate_tokens([],S) => S = [].
+translate_tokens([Token|Tokens],S), number(Token) =>
+    S = [Token|S1],
+    translate_tokens(Tokens,S1).
+translate_tokens([Token|Tokens],S), atom(Token) =>
+    TokenStr = to_string(Token),
+    extract_tokens_from_atom(TokenStr,S,S1),
+    translate_tokens(Tokens,S1).
+translate_tokens([Token|Tokens],S) =>
+    throw($unexpected_token(Token)).
+
+extract_tokens_from_atom([],S,Sr) =>
+    S = Sr.
+extract_tokens_from_atom([Op|TokenStr],S,Sr), operator(Op) =>
+    S = [Op|S1],
+    extract_tokens_from_atom(TokenStr,S1,Sr).
+extract_tokens_from_atom(TokenStr,S,Sr) =>
+    S = [to_atom(TokenStr)|Sr].
+    
+interp([],So,SymTab) => So = [].
+interp(Si,So,SymTab) => 
+    assignment(Si,S1,SymTab),
+    interp(S1,So,SymTab).
+
+assignment([Lhs|Si],So,SymTab) =>
+    identifier(Lhs),
+    Si = ['='|S1],
+    exp(S1,S2,SymTab,Val),
+    S2 = [';'|So],
+    put(SymTab,Lhs,Val).
+
+% E -> E + T | E - T | T
+table
+exp(Si,So,SymTab,Val) ?=>
+    exp(Si,S1,SymTab,Val1),
+    S1 = [Op|S2],
+    (Op = '+' || Op = '-'),
+    term(S2,So,SymTab,Val2),
+    Val = apply(Op,Val1,Val2).
+exp(Si,So,SymTab,Val) =>
+    term(Si,So,SymTab,Val).
+
+% T -> T * F | T / F | F
+table
+term(Si,So,SymTab,Val) ?=>
+    term(Si,S1,SymTab,Val1),
+    S1 = ['*'|S2],
+    factor(S2,So,SymTab,Val2),
+    Val = apply('*',Val1,Val2).
+term(Si,So,SymTab,Val) =>
+    factor(Si,So,SymTab,Val).
+    
+% F -> ( E ) | - F | + F | Literal | Identifier
+factor(['('|Si],So,SymTab,Val) =>
+    exp(Si,S1,SymTab,Val),
+    S1 = [')'|So].
+factor(['-'|Si],So,SymTab,Val) =>
+    factor(Si,So,SymTab,Val1),
+    Val = -Val1.
+factor(['+'|Si],So,SymTab,Val) =>
+    factor(Si,So,SymTab,Val).
+factor([Id|Si],So,SymTab,Val), atom(Id) =>
+    So = Si,
+    if has_key(SymTab,Id) then
+        Val = get(SymTab,Id)
+    else
+        throw($undefined_identifier(Id))
+    end.
+factor([Num|Si],So,SymTab,Val), number(Num) =>
+    So = Si,
+    Val = Num.
+
+operator('=').
+operator('+').
+operator('-').
+operator('*').
+operator(';').
+
+identifier(Token) =>
+    not number(Token),
+    not operator(Token).
