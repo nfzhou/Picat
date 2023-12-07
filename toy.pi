@@ -2,25 +2,25 @@
 An interpreter implemented in Picat for a toy language specified below:
 
 Program:
-	Assignment*
+    Assignment*
 Assignment:
-	Identifier = Exp;
-Exp: 
-	Exp + Term | Exp - Term | Term
+    Identifier = Exp;
+Exp:
+    Exp + Term | Exp - Term | Term
 Term:
-	Term * Fact  | Fact
+    Term * Fact  | Fact
 Fact:
-	( Exp ) | - Fact | + Fact | Literal | Identifier
+    ( Exp ) | - Fact | + Fact | Literal | Identifier
 Identifier:
-     	Letter [Letter | Digit]*
+         Letter [Letter | Digit]*
 Letter:
-	a|...|z|A|...|Z|_
+    a|...|z|A|...|Z|_
 Literal:
-	0 | NonZeroDigit Digit*
+    0 | NonZeroDigit Digit*
 NonZeroDigit:
-	1|...|9
+    1|...|9
 Digit:
-	0|1|...|9
+    0|1|...|9
 
 by Neng-Fa Zhou, December 4, 2023.
 ***********************************************************************/
@@ -32,33 +32,51 @@ main([File]) =>
         printf("%w = %w\n",Key,Val)
     end.
 
-% use Picat's built-in tokenizer. Need to translate the tokens because
-% a substring such as "++" and "--" is treated as a single token.
 tokenize(File,S) =>
-    Tokens = read_file_tokens(File),
-    translate_tokens(Tokens,S).
+    Cs = read_file_chars(File),
+    scan(Cs,S).
 
-translate_tokens([],S) => S = [].
-translate_tokens([Token|Tokens],S), number(Token) =>
+scan([],S) => S = [].
+scan([C|Cs],S), white_space(C) =>
+    scan(Cs,S).
+scan([C|Cs],S), operator(C) =>
+    S = [C|S1],
+    scan(Cs,S1).
+scan([C|Cs],S), ascii_digit(C) =>
+    tokenize_literal(Cs,Cs1,Str),
+    if C == '0' && Str != [] then
+        throw($invalid_literal([C|Str]))
+    end,
+    Token = to_integer([C|Str]),
     S = [Token|S1],
-    translate_tokens(Tokens,S1).
-translate_tokens([Token|Tokens],S), atom(Token) =>
-    TokenStr = to_string(Token),
-    extract_tokens_from_atom(TokenStr,S,S1),
-    translate_tokens(Tokens,S1).
-translate_tokens([Token|Tokens],S) =>
-    throw($unexpected_token(Token)).
+    scan(Cs1,S1).
+scan([C|Cs],S), (ascii_alpha(C) || C == '_') =>
+    tokenize_id(Cs,Cs1,Str),
+    Token = to_atom([C|Str]),
+    S = [Token|S1],
+    scan(Cs1,S1).
+scan([C|Cs],S) =>
+    throw($unrecognized_char(C)).
+ 
+tokenize_literal([C|Cs],Cs1,Str), ascii_digit(C) =>
+    Str = [C|Str1],
+    tokenize_literal(Cs,Cs1,Str1).
+tokenize_literal(Cs,Cs1,Str) =>
+    Cs1 = Cs,
+    Str = [].
 
-extract_tokens_from_atom([],S,Sr) =>
-    S = Sr.
-extract_tokens_from_atom([Op|TokenStr],S,Sr), operator(Op) =>
-    S = [Op|S1],
-    extract_tokens_from_atom(TokenStr,S1,Sr).
-extract_tokens_from_atom(TokenStr,S,Sr) =>
-    S = [to_atom(TokenStr)|Sr].
-    
+tokenize_id([C|Cs],Cs1,Str), ascii_alpha_digit(C) =>
+    Str = [C|Str1],
+    tokenize_id(Cs,Cs1,Str1).
+tokenize_id(['_'|Cs],Cs1,Str) =>
+    Str = ['_'|Str1],
+    tokenize_id(Cs,Cs1,Str1).
+tokenize_id(Cs,Cs1,Str) =>
+    Cs1 = Cs,
+    Str = [].
+
 interp([],So,SymTab) => So = [].
-interp(Si,So,SymTab) => 
+interp(Si,So,SymTab) =>
     assignment(Si,S1,SymTab),
     interp(S1,So,SymTab).
 
@@ -115,6 +133,11 @@ operator('+').
 operator('-').
 operator('*').
 operator(';').
+
+white_space(' ').
+white_space('\r').
+white_space('\t').
+white_space('\n').
 
 identifier(Token) =>
     not number(Token),
