@@ -1,0 +1,153 @@
+/*
+  From Adrian Groza "Modelling Puzzles in First Order Logic"    
+  - Puzzle 127. The 12 pentominoes
+  based on Hakan Kjellerstrand's model at
+      http://hakank.org/picat/polyominos_cp.pi
+  by Neng-Fa Zhou, 1/14/2024
+*/
+
+import sat.
+
+main =>
+    NRows = 3,
+    NCols = 20,
+    Types = [f,i,l,n,p,t,u,v,w,x,y,z],
+    NPents = len(Types),
+    M = pentominoes(),
+    Shapes = [Shape : Type in Types, Shape = M.get(Type)],
+    Board = new_array(NRows,NCols),
+    Board :: 0..1,
+    sum([Board[Row,Col] : Row in 1..NRows, Col in 1..NCols]) #= 5*NPents,
+    PosMatrixes = [new_array(NRows,NCols) :  _ in 1..NPents],
+    Orients = new_list(NPents),                                  % orientation
+    Orients :: 0..3,
+    LUMatrixes = [new_array(NRows,NCols) :  _ in 1..NPents],     % left-upper corner's position
+    foreach ({Shape,PosMatrix,Orient,LUMatrix} in zip(Shapes,PosMatrixes,Orients,LUMatrixes))
+        constrain_shape(Shape,PosMatrix,Orient,LUMatrix,Board)
+    end,
+    no_overlap(PosMatrixes),
+    solve([Orients,LUMatrixes,Board|PosMatrixes]),
+    foreach ({Shape,PosMatrix,Orient,LUMatrix} in zip(Shapes,PosMatrixes,Orients,LUMatrixes))
+        println("shape:"),
+        print_matrix(Shape),
+        printf("orientation: %w\n", Orient),
+    println("left-upper corner:"),
+    print_matrix(LUMatrix),
+        println("position:"),    
+    print_matrix(PosMatrix),
+    nl
+    end.
+
+constrain_shape(Shape,PosMatrix,OrientVar,LUMatrix,Board) =>
+    PosMatrix :: 0..1,
+    NRows = len(Board),
+    NCols = len(Board[1]),
+    foreach (Row in 1..NRows, Col in 1..NCols)
+        PosMatrix[Row,Col] #=> Board[Row,Col]
+    end,
+    %
+    sum([PosMatrix[Row,Col] : Row in 1..NRows, Col in 1..NCols]) #= 5,   
+    %                                       
+    LUMatrix :: 0..1,
+    sum([Square : LURow in LUMatrix, Square in LURow]) #= 1,
+    %
+    Shape1 = rotate(Shape),
+    Shape2 = rotate(Shape1),
+    Shape3 = rotate(Shape2),
+    Variants = {Shape,Shape1,Shape2,Shape3},
+    % pack the pentomino
+    foreach (Orient in 0..3)
+        Variant = Variants[Orient+1],
+        Height = len(Variant),
+        Width = len(Variant[1]),
+        foreach (Row in NRows-Height+2..NRows, Row > 0, Col in 1..NCols)
+            OrientVar #= Orient #=> LUMatrix[Row,Col] #= 0
+        end,
+        foreach (Row in 1..NRows, Col in NCols-Width+2..NCols, Col > 0)
+            OrientVar #= Orient #=> LUMatrix[Row,Col] #= 0
+        end,
+        foreach (Row in 1..NRows-Height+1, Col in 1..NCols-Width+1, DRow in 1..Height, DCol in 1..Width)
+            OrientVar #= Orient #/\ LUMatrix[Row,Col] #=> PosMatrix[Row+DRow-1,Col+DCol-1] #= Variant[DRow,DCol]
+        end
+    end.
+
+no_overlap([M|Ms]) =>
+    no_overlap(M,Ms).
+no_overlap(_) => true.
+
+no_overlap(M,[M1|Ms]) =>
+    NRows = len(M),
+    NCols = len(M[1]),
+    foreach (Row in 1..NRows, Col in 1..NCols)
+        #~M[Row,Col] #\/ #~M1[Row,Col]
+    end,
+    no_overlap(M,Ms).
+no_overlap(M,_) => true.
+
+% rotate the shape clockwise by 90 degree
+rotate(M) = M1 =>
+    NRows = len(M),
+    NCols = len(M[1]),
+    M1 = {Vect : Col in NCols..-1..1, Vect = {M[Row,Col] : Row in 1..NRows}}.
+    
+print_matrix(M) =>
+    foreach (Row in M)
+       println(Row)
+    end.
+
+pentominoes() = Map =>
+
+  Map = new_map([
+    
+   t = {{1,1,1},
+        {0,1,0},
+        {0,1,0}},
+        
+   u = {{1,0,1},
+        {1,1,1}},
+        
+   v = {{1,0,0},
+        {1,0,0},
+        {1,1,1}},
+   w = {{1,0,0},
+        {1,1,0},
+        {0,1,1}},
+
+   x = {{0,1,0},
+        {1,1,1},
+        {0,1,0}},
+
+   y = {{0,1},
+        {1,1},
+        {0,1},
+        {0,1}},
+
+   z = {{1,1,0},
+        {0,1,0},
+        {0,1,1}},
+
+   f = {{0,1,1},
+        {1,1,0},
+        {0,1,0}},
+
+   i = {{1},
+        {1},
+        {1},
+        {1},
+        {1}},
+
+   l = {{1,0},
+        {1,0},
+        {1,0},
+        {1,1}},
+
+   p = {{0,1},
+        {1,1},
+        {1,1}},
+
+   n = {{0,1},
+        {0,1},
+        {1,1},                                         
+        {1,0}}
+     ]).
+
