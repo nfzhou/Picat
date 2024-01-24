@@ -3,7 +3,7 @@
   - Puzzle 127. The 12 pentominoes
   based on Hakan Kjellerstrand's model at
       http://hakank.org/picat/polyominos_cp.pi
-  by Neng-Fa Zhou, 1/14/2024
+  by Neng-Fa Zhou, 1/24/2024
 */
 
 import sat.
