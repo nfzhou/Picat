@@ -31,11 +31,11 @@ main =>
         println("shape:"),
         print_matrix(Shape),
         printf("orientation: %w\n", Orient),
-    println("left-upper corner:"),
-    print_matrix(LUMatrix),
+        println("left-upper corner:"),
+        print_matrix(LUMatrix),
         println("position:"),    
-    print_matrix(PosMatrix),
-    nl
+        print_matrix(PosMatrix),
+        nl
     end.
 
 constrain_shape(Shape,PosMatrix,OrientVar,LUMatrix,Board) =>
