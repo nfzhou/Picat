@@ -10,7 +10,7 @@ import sat.
 
 main =>
     NRows = 3,
-    NCols = 20,
+    NCols = 30,
     Types = [f,i,l,n,p,t,u,v,w,x,y,z],
     NPents = len(Types),
     M = pentominoes(),
@@ -36,7 +36,8 @@ main =>
         println("position:"),    
         print_matrix(PosMatrix),
         nl
-    end.
+    end,
+    print_matrix(Board).
 
 constrain_shape(Shape,PosMatrix,OrientVar,LUMatrix,Board) =>
     PosMatrix :: 0..1,
@@ -72,7 +73,8 @@ constrain_shape(Shape,PosMatrix,OrientVar,LUMatrix,Board) =>
     end.
 
 no_overlap([M|Ms]) =>
-    no_overlap(M,Ms).
+    no_overlap(M,Ms),
+    no_overlap(Ms).
 no_overlap(_) => true.
 
 no_overlap(M,[M1|Ms]) =>
