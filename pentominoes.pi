@@ -117,7 +117,7 @@ flip_h(M) = M1 =>
     
 % flip the shape vertically
 flip_v(M) = M1 =>
-    M1 = [reverse(R) : R in M].
+    M1 = {reverse(R) : R in M}.
     
 print_matrix(M) =>
     foreach (Row in M)
