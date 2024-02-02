@@ -3,7 +3,7 @@
   - Puzzle 127. The 12 pentominoes
   based on Hakan Kjellerstrand's model at
       http://hakank.org/picat/polyominos_cp.pi
-  by Neng-Fa Zhou, 1/24/2024, updated 1/26/2024
+  by Neng-Fa Zhou, 1/24/2024, updated 1/26/2024, 2/1/2024
 */
 
 import sat.
@@ -39,6 +39,7 @@ main =>
     foreach ({Shape,PosMatrix,LUMatrix} in zip(Shapes,PosMatrixes,LUMatrixes))
         constrain_shape(Shape,PosMatrix,LUMatrix,Board)
     end,
+    sum([LUMatrix[1,1] : LUMatrix in LUMatrixes]) #= 1,
     no_overlap(PosMatrixes),
     solve([LUMatrixes,Board|PosMatrixes]),
     SolBoard = new_array(NRows,NCols),
