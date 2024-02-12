@@ -30,7 +30,7 @@ main =>
     NPents = len(Types),
     M = pentominoes(),
     Pents = [create_pent(Shape,NRows,NCols) : Type in Types, Shape = M.get(Type)],
-    constrain_pents(Pents,NRows,NCols),
+%    constrain_pents(Pents,NRows,NCols),
     sum([LUPosMatrix[1,1] : {_,_,LUPosMatrix,_} in Pents]) #= 1,   % exactly one piece is located at (1,1)
     foreach (R in 1..NRows, C in 1..NCols)                       
         sum([Frame[R,C] : {_,_,_,Frame} in Pents]) #= 1            % all cells are filled
