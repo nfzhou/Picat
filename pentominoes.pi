@@ -1,9 +1,8 @@
 /*
   From Adrian Groza "Modelling Puzzles in First Order Logic"    
   - Puzzle 127. The 12 pentominoes
-  based on Hakan Kjellerstrand's model at
-      http://hakank.org/picat/polyominos_cp.pi
-  by Neng-Fa Zhou, 1/24/2024, updated 1/26/2024, 2/1/2024
+  based on Hakan Kjellerstrand's model at: http://hakank.org/picat/polyominos_cp.pi
+  by Neng-Fa Zhou, first created on 1/24/2024
 */
 
 import sat.
@@ -23,72 +22,84 @@ main =>
     NRows = 5,
     NCols = 6,
     Types = [t,w,y,z,i,l],
-*/    
+*/
     NRows = 3,
     NCols = 20,
     Types = [f,i,l,n,p,t,u,v,w,x,y,z],
-
+    
     NPents = len(Types),
     M = pentominoes(),
-    Shapes = [Shape : Type in Types, Shape = M.get(Type)],
+    Pents = [create_pent(Shape,NRows,NCols) : Type in Types, Shape = M.get(Type)],
+    constrain_pents(Pents,NRows,NCols),
+    sum([LUPosMatrix[1,1] : {_,_,LUPosMatrix,_} in Pents]) #= 1,   % exactly one piece is located at (1,1)
+    foreach (R in 1..NRows, C in 1..NCols)                       
+        sum([Frame[R,C] : {_,_,_,Frame} in Pents]) #= 1            % all cells are filled
+    end,
+    solve(Pents),
     Board = new_array(NRows,NCols),
-    Board :: 0..1,
-    sum([Board[Row,Col] : Row in 1..NRows, Col in 1..NCols]) #= 5*NPents,
-    PosMatrixes = [new_array(NRows,NCols) :  _ in 1..NPents],
-    LUMatrixes = [new_array(NRows,NCols) :  _ in 1..NPents],     % left-upper corner's position
-    foreach ({Shape,PosMatrix,LUMatrix} in zip(Shapes,PosMatrixes,LUMatrixes))
-        constrain_shape(Shape,PosMatrix,LUMatrix,Board)
+    foreach ({I,Pent} in zip(1..NPents, Pents))
+        fill_pent(Board,NRows,NCols,I,Pent)
     end,
-    sum([LUMatrix[1,1] : LUMatrix in LUMatrixes]) #= 1,
-    no_overlap(PosMatrixes),
-    solve([LUMatrixes,Board|PosMatrixes]),
-    SolBoard = new_array(NRows,NCols),
-    I = 1,
-    foreach (PosMatrix in PosMatrixes)
-        foreach (Row in 1..NRows, Col in 1..NCols)
-	    if PosMatrix[Row,Col] = 1 then
-	        SolBoard[Row,Col] = I
-	    end
-	end,
-	I := I+1
-    end,
-    print_matrix(SolBoard).
+    print_matrix(Board).
 
-constrain_shape(Shape,PosMatrix,LUMatrix,Board) =>
-    PosMatrix :: 0..1,
-    NRows = len(Board),
-    NCols = len(Board[1]),
-    foreach (Row in 1..NRows, Col in 1..NCols)
-        PosMatrix[Row,Col] #=> Board[Row,Col]
-    end,
-    %
-    sum([PosMatrix[Row,Col] : Row in 1..NRows, Col in 1..NCols]) #= 5,   
-    %                                       
-    LUMatrix :: 0..1,
-    sum([LUMatrix[Row,Col] : Row in 1..NRows, Col in 1..NCols]) #= 1,   
-
-    %
+create_pent(Shape,NRows,NCols) = {Variants,Orients,LUPosMatrix,Frame} =>
     shape_variants(Shape,Variants),
-    foreach (Row in 1..NRows, Col in 1..NCols)
-        place_variants(PosMatrix,NRows,NCols,Row,Col,Variants,Bs),
-        LUMatrix[Row,Col] #=> sum(Bs) #>= 1
+    NVariants = length(Variants),
+    Orients = new_list(NVariants),
+    Orients :: 0..1,
+    sum(Orients) #= 1,                                    % placed with exactly one orientation
+    LUPosMatrix = new_array(NRows,NCols),                 % left-upper corner's position
+    LUPosMatrix :: 0..1,
+    sum([LUPosMatrix[R,C] : R in 1..NRows, C in 1..NCols]) #= 1,
+    Frame = new_array(NRows,NCols),
+    Frame :: 0..1,
+    sum([Frame[R,C] : R in 1..NRows, C in 1..NCols]) #= 5,   
+    foreach ({Variant,Orient} in zip(Variants,Orients))   % do not cross the boundary
+        H = len(Variant),
+        W = len(Variant[1]),
+        foreach (R in 1..NRows, C in 1..NCols)
+            if R+H-1 > NRows || C+W-1 > NCols then
+                Orient #=> #~LUPosMatrix[R,C]
+            else
+                foreach (Dr in 1..H, Dc in 1..W)      % image on frame
+                   Orient #/\ LUPosMatrix[R,C] #=> Frame[R+Dr-1,C+Dc-1] #= Variant[Dr,Dc]
+                end
+            end
+        end
     end.
 
-place_variants(PosMatrix,NRows,NCols,Row,Col,[Variant|Variants],Bs) =>
-    Bs = [B|BsR],
-    place_variant(PosMatrix,NRows,NCols,Row,Col,Variant,B),
-    place_variants(PosMatrix,NRows,NCols,Row,Col,Variants,BsR).
-place_variants(PosMatrix,NRows,NCols,Row,Col,[],Bs) => Bs = [].
+% reason about left-upper corner positions, redundant but maybe helpful
+constrain_pents([],NRows,NCols) => true.
+constrain_pents([Pent|Pents],NRows,NCols) =>
+    constrain_pents(Pent,Pents,NRows,NCols),
+    constrain_pents(Pents,NRows,NCols).
 
-% B = 1 iff this variant is placed at (Row,Col)
-place_variant(PosMatrix,NRows,NCols,Row,Col,Variant,B) =>
-    Height = len(Variant),
-    Width = len(Variant[1]),
-    if Row+Height-1 > NRows || Col+Width-1 > NCols then
-        B = 0
-    else
-        B #<=> sum([PosMatrix[Row+DRow-1,Col+DCol-1] #= Variant[DRow,DCol] : DRow in 1..Height, DCol in 1..Width]) #= Height*Width
+constrain_pents(Pent1,[],NRows,NCols) => true.
+constrain_pents(Pent1,[Pent2|Pents],NRows,NCols) =>
+    constrain_2_pents(Pent1,Pent2,NRows,NCols),
+    constrain_pents(Pent1,Pents,NRows,NCols).
+
+constrain_2_pents(Pent1,Pent2,NRows,NCols) =>    
+    Pent1 = {Variants1,Orients1,LUPosMatrix1,_},
+    Pent2 = {Variants2,Orients2,LUPosMatrix2,_},
+    foreach ({Variant1,Orient1} in zip(Variants1,Orients1), {Variant2,Orient2} in zip(Variants2,Orients2))
+        H1 = len(Variant1),
+        W1 = len(Variant1[1]),
+        H2 = len(Variant2),
+        W2 = len(Variant2[1]),
+        foreach (R1 in 1..NRows-H1+1, C1 in 1..NCols-W1+1, R2 in 1..NRows-H2+1, C2 in 1..NCols-W2+1)
+            if overlap(Variant1,W1,H1,R1,C1,Variant2,W2,H2,R2,C2) then
+                Orient1 #/\ Orient2 #/\ LUPosMatrix1[R1,C1] #=> #~LUPosMatrix2[R2,C2]
+            end
+        end
     end.
+    
+% placing Variant1 at (R1,C1) and Variant2 at (R2,C2) results in a conflict
+overlap(Variant1,W1,H1,R1,C1,Variant2,W2,H2,R2,C2) =>
+    between(max(R1,R2), min(R1+H1-1, R2+H2-1), R),
+    between(max(C1,C2), min(C1+W1-1, C2+W2-1), C),
+    Variant1[R-R1+1,C-C1+1] == 1,
+    Variant2[R-R2+1,C-C2+1] == 1,!.
 
 shape_variants(Shape0,Variants) =>
     Shape01 = rotate(Shape0),
@@ -98,13 +109,8 @@ shape_variants(Shape0,Variants) =>
     Shape11 = rotate(Shape1),
     Shape12 = rotate(Shape11),
     Shape13 = rotate(Shape12),
-    Shape2 = flip_v(Shape0),
-    Shape21 = rotate(Shape2),
-    Shape22 = rotate(Shape21),
-    Shape23 = rotate(Shape22),
     Variants = [Shape0,Shape01,Shape02,Shape03,
-                Shape1,Shape11,Shape12,Shape13,
-                Shape2,Shape21,Shape22,Shape23].sort_remove_dups().
+                Shape1,Shape11,Shape12,Shape13].sort_remove_dups().
 
 % rotate the shape clockwise by 90 degree
 rotate(M) = M1 =>
@@ -116,28 +122,17 @@ rotate(M) = M1 =>
 flip_h(M) = M1 =>
     M1 = reverse(M).
     
-% flip the shape vertically
-flip_v(M) = M1 =>
-    M1 = {reverse(R) : R in M}.
-    
+fill_pent(Board,NRows,NCols,Num,{_,_,_,Frame}) =>
+    foreach (R in 1..NRows, C in 1..NCols)
+        if Frame[R,C] == 1 then
+            Board[R,C] = Num
+        end
+    end.
+
 print_matrix(M) =>
     foreach (Row in M)
        println(Row)
     end.
-
-no_overlap([M|Ms]) =>
-    no_overlap(M,Ms),
-    no_overlap(Ms).
-no_overlap(_) => true.
-
-no_overlap(M,[M1|Ms]) =>
-    NRows = len(M),
-    NCols = len(M[1]),
-    foreach (Row in 1..NRows, Col in 1..NCols)
-        #~M[Row,Col] #\/ #~M1[Row,Col]
-    end,
-    no_overlap(M,Ms).
-no_overlap(M,_) => true.
 
 pentominoes() = Map =>
 
