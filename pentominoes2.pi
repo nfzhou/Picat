@@ -1,0 +1,119 @@
+% A slightly improved version of the program by Peter Bernschneider at:
+% https://github.com/bernschneider/picat/tree/main/pentominos
+
+/* Adria Groza: Puzzle 127 "The 12 pentominos" */
+import sat, util. % matrix generates the pentominos and their symmetries
+
+main([NRStr,NCStr]) =>
+    main(to_int(NRStr), to_int(NCStr)).
+    
+main(NR,NC) =>
+    generate(P), % P[1] = Pentomino X, P[2] = I, P[3] = Z, and so on U, V, P, W, T, F, Y, N, L (from module matrixP)
+    % Number of possible pentomino placements:
+    Max = sum([max(0,(NC+1-NCp)*(NR+1-NRp)) : I in 1..12, J in 1..len(P[I]), NRp = len(P[I,J]), NCp = len(P[I,J,1])]), 
+    Select = new_array(Max), Select :: 0..1,
+    M = new_array(Max), % Exact Cover matrix
+    Idx = 0,
+    foreach(I in 1..12)
+        StartIdx := Idx+1,
+        foreach (J in 1..len(P[I]), NRp = len(P[I,J]), NCp = len(P[I,J,1]), C0 in 0..NC-NCp, R0 in 0..NR-NRp)
+            Line = {0 : _ in 1..72}, % col 1..12 = number of pentomino, col 13..72 flattended 3x20 grid
+            Line[I] := 1, % mark the pentomino number at the respective column
+            % Copy the J-th symmetry variant of pentomino I into the flattened grid "Line":
+            foreach(Rp in 1..NRp, Cp in 1..NCp, P[I,J,Rp,Cp] = 1)  Line[12+(R0+Rp-1)*NC+C0+Cp] := 1 end,
+            Idx := Idx + 1, 
+            M[Idx] = Line % copy Line into Exact Cover matrix M 
+    	end,
+	EndIdx := Idx,
+        sum([Select[K] : K in StartIdx..EndIdx]) #= 1 % select exactly one variant for each pentomino
+    end,
+%    sum(Select) #= 12, % select 12 lines, one for each of the 12 pentominos
+    foreach(Col in M.columns()) scalar_product(Select, Col, 1) end, % this selection is an Exact Cover!
+    solve(Select), 
+    % Compute Grid matrix for print-out:
+    Grid = new_array(NR,NC), Chr = "XIZUVPWTFYNL", 
+    foreach(T in 1..Max, Select[T] = 1, I = find_first_of(M[T], 1), R in 1..NR, C in 1..NC, M[T,12+(R-1)*NC+C] = 1)
+        Grid[R,C] = I
+    end,
+    foreach(R in 1..NR, C in 1..NC)
+		printf("%c|", Chr[Grid[R,C]]),
+    	if C = NC then nl end
+    end,
+    fail.
+
+/* main(3,20):
+V|L|L|L|L|F|T|T|T|W|W|Z|I|I|I|I|I|X|U|U|
+V|L|N|N|F|F|F|T|W|W|Y|Z|Z|Z|P|P|X|X|X|U|
+V|V|V|N|N|N|F|T|W|Y|Y|Y|Y|Z|P|P|P|X|U|U|           CPU time 1.141 seconds, correct 
+
+main(6,10): 
+I|I|I|I|I|Z|Y|Y|Y|Y|
+U|U|U|Z|Z|Z|P|P|Y|W|
+U|F|U|Z|X|P|P|P|W|W|
+F|F|F|X|X|X|V|W|W|T|
+F|N|N|N|X|L|V|T|T|T|
+N|N|L|L|L|L|V|V|V|T|                                CPU time 1.682 seconds, correct */
+
+% Module for Groza 127the12pentominos.pi
+rotate(Q) = Res => % turn right by 90 degrees
+    NZ = len(Q[1]), NS = len(Q), Res = new_array(NZ,NS),
+    foreach(Z in 1..NZ, S in 1..NS) Res[Z,S] = Q[S,NZ+1-Z] end. 
+
+reflecth(Q) = Res => % reflect horizontally
+    NR = len(Q), NC = len(Q[1]),
+    Res = new_array(NR,NC),
+    foreach(R in 1..NR, C in 1..NC) Res[R,C] = Q[NR+1-R,C] end.
+
+matprint(Q) =>
+    NZ = len(Q), NS = len(Q[1]), 
+    foreach(Z in 1..NZ, S in 1..NS)
+        printf("%d|", Q[Z,S]),
+        if S=NS then nl end
+    end, nl.
+
+generate(Res) =>
+    P0 = [{{1,1,1,1}, % L
+           {1,0,0,0}},
+          {{0,1,1,1}, % N
+           {1,1,0,0}},
+          {{1,1,1,1}, % Y
+           {0,1,0,0}},
+          {{1,1,0}, % F
+           {0,1,1},
+           {0,1,0}},
+          {{1,1,1}, % T
+           {0,1,0},
+           {0,1,0}},
+          {{0,0,1}, % W
+           {0,1,1},
+           {1,1,0}},
+          {{1,1,1}, % P
+           {1,1,0}},
+          {{0,0,1}, % V
+           {0,0,1},
+           {1,1,1}},
+          {{1,0,1}, % U
+           {1,1,1}},
+          {{1,0,0}, % Z
+           {1,1,1},
+           {0,0,1}},
+          {{1,1,1,1,1}}, % I
+          {{0,1,0}, % X
+           {1,1,1},
+           {0,1,0}}],
+    Np = len(P0), P = [],
+    foreach(I in 1..Np)
+        VarI = [P0[I]],
+        foreach(_ in 1..3) VarI := [rotate(head(VarI))|VarI] end, 
+        VarI := VarI ++ [reflecth(Pt) : Pt in VarI],
+        P := [remove_dups(VarI)|P] 
+    end,
+    Res = P.
+
+    /*main => 
+        generate(P),
+        foreach(VarI in P)
+            foreach(Q in VarI) matprint(Q) end,
+            printf("%d ---%n", len(VarI))
+        end.*/
+    % P[1] = X, P[2] = I, P[3] = Z, U, V, P, W, T, F, Y, N, L
