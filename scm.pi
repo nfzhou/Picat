@@ -1,0 +1,136 @@
+import ordset.
+
+/*
+main =>
+    between(3,2,2047,C),
+    once solve_SCM(C),
+    fail.
+*/
+
+main =>
+    solve_SCM(617,4).
+
+main([CStr,XStr]) =>
+    C = to_int(CStr),
+    XBits = to_int(XStr),
+    solve_SCM(C,XBits).
+
+test =>
+    time(solve_SCM(171398451,4)).
+
+solve_SCM(C,XBits) =>
+   scm(C,XBits,Cost,Plan),
+   (XBits == 0 ->
+        printf("#additions = %d \n", Cost)
+    ;
+        printf("#adders = %d \n", Cost)
+   ),
+   foreach ((Step, _) in Plan) output(Step) end.
+
+% C is an odd integer (C's binary representation has the form 1?.*1)
+% The predicate minimizes the number of additions if XBits = 0, 
+% and the number of half/full adders if XBits > 0.
+table (+, +, mmin, -)
+scm(1, XBits, Cost, Plan) =>
+    Cost = 0, Plan = [].
+scm(C, XBits, Cost, Plan) =>                     
+    (split_pp(C, C1, C2, S),           % SPLUS: C = (C1 << S) + C2
+     OP = $splus(C, C1, C2, S)
+    ;
+     split_pn(C, C1, C2, S),           % SMINUS: C = (C1 << S) - C2
+     OP = $sminus(C, C1, C2, S)
+    ;
+     split_np(C, C1, C2, S),           % MINUSS: C = C1 - (C2 << S)
+     OP = $minuss(C, C1, C2, S)
+    ),
+    comp_op_cost(XBits, OP, ThisCost),
+    scm(C1, XBits, _Cost1, Plan1),
+    scm(C2, XBits, _Cost2, Plan2),
+    Plan12 = union(Plan1, Plan2),
+    Plan = Plan12.insert((OP, ThisCost)),
+    Cost = sum([T : (_, T) in Plan]).
+
+% split C into (Left<<S + Right) based on C's binary representation
+split_pp(C, Left, Right, S) =>
+    split_pp_aux(C, Left, 0, Right, 0, S).
+
+split_pp_aux(C, Left, Right0, Right, S0, S), C /\ 1 == 1 ?=> 
+    Right is Right0 + (1 << S0),
+    C1 is C >> 1,
+    C1 > 0,
+    S1 is S0+1,
+    remove_trailing_zeros(C1, Left, S1, S).
+
+split_pp_aux(C, Left, Right0, Right, S0, S), C > 0 => 
+    Bit is C /\ 1,
+    Right1 is Right0 + (Bit << S0),
+    S1 is S0+1,
+    C1 is C >> 1,
+    split_pp_aux(C1, Left, Right1, Right, S1, S).
+
+% Nondeterministically split C's binary representation into ab, where a's lowest bit is 0.
+% Left = (a+1), Rihgt = (~b-1), S = |b|
+% C = Left * (1 << S) - Right
+%
+split_pn(C, Left, Right, S) =>
+    split_pn_aux(C, Left, 1, Right, 0, S).
+
+split_pn_aux(C, Left, Right0, Right, S0, S), C == 0 =>
+    Left = 1,
+    Right = Right0,
+    S = S0.
+split_pn_aux(C, Left, Right0, Right, S0, S), C /\ 1 == 0 ?=>
+    Left = C+1,
+    Right = Right0,
+    S = S0.
+split_pn_aux(C, Left, Right0, Right, S0, S) =>
+    Bit is C /\ 1,
+    Right1 = Right0 + cond(Bit == 0, (1 << S0), 0),
+    S1 is S0+1,
+    C1 is C >> 1,
+    split_pn_aux(C1, Left, Right1, Right, S1, S).
+
+% Nondeterministically split C's binary representation into ab, where a's lowest bit is 0.
+% Left = 2**|ab|-2**|b|+b, Rihgt = (~a), S = |b|
+% C = Left - Right*(1<<S)
+%
+split_np(C, Left, Right, S) =>
+    N = round(log(2, C)+0.5),    % N = |C|, number of bits in C's binary representation
+    Left0 = 2**N,
+    split_np_aux(C, N, Left0, Left, Right, 0, S).
+
+split_np_aux(C, N, Left0, Left, Right, S0, S), C > 0, C /\ 1 == 0 ?=>
+    Left = Left0-(1<<S0),
+    Right = 2**N-1-C,
+    S = S0.
+split_np_aux(C, N, Left0, Left, Right, S0, S), C > 0 =>
+    Bit is C /\ 1,
+    Left1 = Left0 + (Bit << S0),
+    S1 is S0+1,
+    C1 is C >> 1,
+    N1 is N-1,
+    split_np_aux(C1, N1, Left1, Left, Right, S1, S).
+
+% C0 > 0
+remove_trailing_zeros(C0, C, S0, S), C0 /\ 1 == 1 => C = C0, S = S0.
+remove_trailing_zeros(C0, C, S0, S) =>
+    C1 is C0 >> 1,
+    S1 is S0+1,
+    remove_trailing_zeros(C1, C, S1, S).
+
+comp_op_cost(0, OP, Cost) => Cost = 1.
+comp_op_cost(XBits, splus(C, C1, C2, S), Cost) =>
+    W1 = cond(C1 == 1, 0, round(log(2, C1)+0.5)) + XBits,
+    W2 = cond(C2 == 1, 0, round(log(2, C2)+0.5)) + XBits,
+    Cost = cond(S >= W2, 0, max(W1, (W2-S))).
+comp_op_cost(XBits, minuss(C, C1, C2, S), Cost) =>
+    comp_op_cost(XBits, $splus(C1, C, C2, S), Cost).
+comp_op_cost(XBits, minuss(C, C1, C2, S), Cost) =>
+    Cost = round(log(2, C)+0.5) + XBits.
+
+output(splus(C,Left, Right, Shift)) =>
+    println($(C = Left*(1<<Shift)+Right)).
+output(sminus(C,Left, Right, Shift)) =>
+    println($(C = Left*(1<<Shift)-Right)).
+output(minuss(C,Left, Right, Shift)) =>
+    println($(C = Left-Right*(1<<Shift))).
