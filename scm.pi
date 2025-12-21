@@ -69,7 +69,7 @@ split_pp_aux(C, Left, Right0, Right, S0, S), C > 0 =>
     split_pp_aux(C1, Left, Right1, Right, S1, S).
 
 % Nondeterministically split C's binary representation into ab, where a's lowest bit is 0.
-% Left = (a+1), Rihgt = (~b-1), S = |b|
+% Left = (a+1), Right = (~b-1), S = |b|
 % C = Left * (1 << S) - Right
 %
 split_pn(C, Left, Right, S) =>
@@ -91,7 +91,7 @@ split_pn_aux(C, Left, Right0, Right, S0, S) =>
     split_pn_aux(C1, Left, Right1, Right, S1, S).
 
 % Nondeterministically split C's binary representation into ab, where a's lowest bit is 0.
-% Left = 2**|ab|-2**|b|+b, Rihgt = (~a), S = |b|
+% Left = 2**|ab|-2**|b|+b, Right = (~a), S = |b|
 % C = Left - Right*(1<<S)
 %
 split_np(C, Left, Right, S) =>
