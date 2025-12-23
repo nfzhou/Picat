@@ -1,31 +1,29 @@
 import ordset.
 
-/*
 main =>
     between(3,2,2047,C),
-    once solve_SCM(C),
+    once scm(C,8),
     fail.
-*/
 
 main =>
-    solve_SCM(617,4).
+    scm(617,4).
 
 main([CStr,XStr]) =>
     C = to_int(CStr),
     XBits = to_int(XStr),
-    solve_SCM(C,XBits).
+    scm(C,XBits).
 
 test =>
-    time(solve_SCM(171398451,4)).
+    time(scm(171398451,8)).
 
-solve_SCM(C,XBits) =>
+scm(C,XBits) =>
    scm(C,XBits,Cost,Plan),
    (XBits == 0 ->
-        printf("#additions = %d \n", Cost)
+        writeln(additions = (C,Cost))
     ;
-        printf("#adders = %d \n", Cost)
-   ),
-   foreach ((Step, _) in Plan) output(Step) end.
+        writeln(adders = (C,Cost))
+   ).
+%   foreach ((Step, _) in Plan) output(Step) end.
 
 % C is an odd integer (C's binary representation has the form 1?.*1)
 % The predicate minimizes the number of additions if XBits = 0, 
@@ -125,7 +123,7 @@ comp_op_cost(XBits, splus(C, C1, C2, S), Cost) =>
     Cost = cond(S >= W2, 0, max(W1, (W2-S))).
 comp_op_cost(XBits, minuss(C, C1, C2, S), Cost) =>
     comp_op_cost(XBits, $splus(C1, C, C2, S), Cost).
-comp_op_cost(XBits, minuss(C, C1, C2, S), Cost) =>
+comp_op_cost(XBits, sminus(C, C1, C2, S), Cost) =>
     Cost = round(log(2, C)+0.5) + XBits.
 
 output(splus(C,Left, Right, Shift)) =>
