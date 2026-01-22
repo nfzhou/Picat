@@ -118,7 +118,7 @@ comp_op_cost(XBits, splus(C, C1, C2, S), Cost) =>
     Cost = cond(S >= W2, 0, max(W1, (W2-S))).
 comp_op_cost(XBits, minuss(C, C1, C2, S), Cost) =>
     comp_op_cost(XBits, $splus(C1, C, C2, S), Cost).
-comp_op_cost(XBits, sminus(C, C1, C2, S, Cost)) =>
+comp_op_cost(XBits, sminus(C, C1, C2, S), Cost) =>
     Cost = round(log(2, C)+0.5) + XBits.
 
 output(splus(C,Left, Right, Shift)) =>
