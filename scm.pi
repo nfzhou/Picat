@@ -16,14 +16,23 @@ main([CStr,XStr]) =>
 test =>
     time(scm(171398451,8)).
 
+test1 =>
+    Cs = [3,5,7,9,15,35,45,49,107,127],
+    println(sum([Cost : C in Cs, scm(C,7,Cost,_)])).
+
+test2 =>
+    Cs = [5,9,11,15,17,19,23,39,41,51,53,61,63,65,67,85,93,107,133,141,167,215,243,391,623],
+    println(sum([Cost : C in Cs, scm(C,13,Cost,_)])).
+
 scm(C,XBits) =>
    scm(C,XBits,Cost,Plan),
    (XBits == 0 ->
         writeln(additions = (C,Cost))
     ;
         writeln(adders = (C,Cost))
-   ).
-%   foreach ((Step, _) in Plan) output(Step) end.
+   ),
+   foreach ((Step, _) in Plan) output(Step) end,
+   fail.
 
 % C is an odd integer (C's binary representation has the form 1?.*1)
 % The predicate minimizes the number of additions if XBits = 0, 
