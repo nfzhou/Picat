@@ -1,3 +1,8 @@
+% This program is explained in the paper: 
+% Dynamic Programming and Tabled Logic Programming for Encoding Single-Constant Multiplication into SAT, 
+% Neng-Fa Zhou, Chufeng Jiang,  Hendrik Bierlee,  and Peter Stuckey,
+% 18th International Symposium on Functional and Logic Programming, 2026
+
 import ordset.
 
 main =>
@@ -16,23 +21,15 @@ main([CStr,XStr]) =>
 test =>
     time(scm(171398451,8)).
 
-test1 =>
-    Cs = [3,5,7,9,15,35,45,49,107,127],
-    println(sum([Cost : C in Cs, scm(C,7,Cost,_)])).
-
-test2 =>
-    Cs = [5,9,11,15,17,19,23,39,41,51,53,61,63,65,67,85,93,107,133,141,167,215,243,391,623],
-    println(sum([Cost : C in Cs, scm(C,13,Cost,_)])).
-
 scm(C,XBits) =>
-   scm(C,XBits,Cost,Plan),
-   (XBits == 0 ->
+    scm(C,XBits,Cost,Plan),
+    (XBits == 0 ->
         writeln(additions = (C,Cost))
     ;
         writeln(adders = (C,Cost))
-   ),
-   foreach ((Step, _) in Plan) output(Step) end,
-   fail.
+    ),
+    scm_sort_plan([C],Plan,[],SortedPlan),
+    foreach (Step in SortedPlan) output(Step) end.
 
 % C is an odd integer (C's binary representation has the form 1?.*1)
 % The predicate minimizes the number of additions if XBits = 0, 
@@ -141,3 +138,34 @@ output(sminus(C,Left, Right, Shift)) =>
     println($(C = Left*(1<<Shift)-Right)).
 output(minuss(C,Left, Right, Shift)) =>
     println($(C = Left-Right*(1<<Shift))).
+
+scm_sort_plan([],Plan,SortedPlan0,SortedPlan) => SortedPlan = SortedPlan0.
+scm_sort_plan(Targets,Plan,SortedPlan0,SortedPlan) =>
+    scm_select_root(Targets,Targets1,Plan,OP,Plan1),!,
+    arg(2,OP,Left),
+    arg(3,OP,Right),
+    (Left == 1 ->
+        Targets2 = Targets1
+    ;
+        Targets2 = insert(Targets1,Left)
+    ),
+    (Right == 1 ->
+        Targets3 = Targets2
+    ; Left == Right ->
+        Targets3 = Targets2
+    ;
+        Targets3 = insert(Targets2,Right)
+    ),
+    scm_sort_plan(Targets3,Plan1,[OP|SortedPlan0],SortedPlan).
+
+scm_select_root(Targets,TargetsR,Plan,OP,PlanR) =>
+    select(C,Targets,TargetsR),
+    select((OP,_),Plan,PlanR),
+    arg(1,OP,C),
+    not scm_is_child(C,PlanR).
+
+% C is a is a child if it occurs as Left or Right in an operation
+scm_is_child(C,[(OP,_)|Plan]), arg(2,OP,Left), C == Left => true.
+scm_is_child(C,[(OP,_)|Plan]), arg(3,OP,Right), C == Right => true.
+scm_is_child(C,[_|Plan]) =>
+    scm_is_child(C,Plan).
