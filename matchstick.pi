@@ -1,0 +1,68 @@
+/* In a classic matchstick puzzle, digits and operators are formed using matchsticks. By moving
+   exactly one matchstick, an invalid equation can sometimes be transformed into a valid one.
+   This Picat program is for solving the basic variant of the problem, where only matchsticks 
+   in digits can be moved.
+*/
+
+main =>
+    solve("2+5=5").
+
+main([E]) =>    % use the program as a standalone app: picat matchstick "7+5=5"
+    solve(E).
+
+solve(E) ?=>
+    remove_stick_eq(E,E1),    
+    add_stick_eq(E1,E2),
+    check_eq(E2).
+solve(E) =>
+    move_stick_eq(E,E1),
+    check_eq(E1).
+
+remove_stick_eq(E,E1) =>
+    append(L,[D|R],E),
+    remove_stick(D,D1),
+    E1 = L ++ [D1|R].
+
+add_stick_eq(E,E1) =>
+    append(L,[D|R],E),
+    add_stick(D,D1),
+    E1 = L++[D1|R].
+
+move_stick_eq(E,E1) =>
+    append(L,[D|R],E),
+    move_stick(D,D1),
+    E1 = L++[D1|R].
+
+check_eq(E) =>
+    append(L,['='|R],E),
+    Lhs = parse_term(L),
+    Rhs = parse_term(R),
+    Lhs =:= Rhs,
+    println(E).
+    
+remove_stick(D,D1) =>
+    add_stick(D1,D).
+
+add_stick('0','8').
+add_stick('1','7').
+add_stick('3','9').
+add_stick('5','6').
+add_stick('5','9').
+add_stick('6','8').
+add_stick('9','8').
+
+move_stick('0','6').
+move_stick('0','9').
+move_stick('2','3').
+move_stick('3','2').
+move_stick('3','5').
+move_stick('5','3').
+move_stick('6','0').
+move_stick('6','9').
+move_stick('9','0').
+move_stick('9','6').
+
+
+
+
+
