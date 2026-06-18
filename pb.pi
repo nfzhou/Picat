@@ -1,5 +1,5 @@
 /****************************************************************************
-   pb.pi (in Picat), by Neng-Fa Zhou, March 28, 2016, last updated 2024
+   pb.pi (in Picat), by Neng-Fa Zhou, March 28, 2016, last updated 2026
 
    This program interprets PB instances of the format used in the PB competition.
 
@@ -46,23 +46,51 @@ pb(InFile) ?=>
     ),        
     InStream = open(OPBFile,read),
     read_pb_cl_tokens(InStream,Tokens),
-    printf("c solving %s (Picat 3.6#12)\n",InFile),
+    printf("c solving %s (Picat 3.9#8.3, 06/18/2026)\n",InFile),
     VarsMap = new_map(),
     catch(parse(InStream,Tokens,VarsMap,Obj),Exception,(printf("c %w\n", Exception),close(InStream),halt)),
     close(InStream),
     List = map_to_list(VarsMap),
-    (var(Obj) ->
-        solve(List),
-	println("s SATISFIABLE")
-    ;
-        ObjVar #= Obj,
-        solve($[min(ObjVar), $report(printf("o %w\n",ObjVar))],List),
-        println("s OPTIMUM FOUND")
-    ),
-    print('v '),
-    output_sol(List,10).
+    pb_aux(Obj,List).
 pb(_InFile) =>
     println("s UNSATISFIABLE").
+
+pb_aux(Obj,List), var(Obj) =>
+    solve(List),
+  	println("s SATISFIABLE"),!,
+    output_sol(List).
+pb_aux(Obj,List) ?=> 
+    all_coes_negative(Obj),!,
+    negate_coes(Obj,Obj1),
+%    ReportCall = $(eval_obj(Obj1,0,Res), ObjVal is -Res, printf("o %w\n",ObjVal)),
+    ReportCall = $(ObjVal is -Obj1, printf("o %w\n",ObjVal)),
+    solve($[max(Obj1), report(ReportCall)],List),!,
+    println("s OPTIMUM FOUND"),
+    output_sol(List).
+pb_aux(Obj,List) => 
+%    ReportCall = $(eval_obj(Obj,0,ObjVal), printf("o %w\n",ObjVal)),
+    ReportCall = $(ObjVal is Obj, printf("o %w\n",ObjVal)),
+    solve($[min(Obj), report(ReportCall)],List),!,
+    println("s OPTIMUM FOUND"),
+    output_sol(List).
+
+output_sol(List) =>
+    print('v '),
+    output_sol(List,10).
+
+all_coes_negative(A*X) => A < 0.
+all_coes_negative(T1+T2) => 
+    all_coes_negative(T1),
+    all_coes_negative(T2).
+all_coes_negative(T) => integer(T).
+
+
+negate_coes(A*X,E) => A1 is -A, E = $(A1*X).
+negate_coes(T1+T2,E) =>
+    E = $(E1+E2), 
+    negate_coes(T1,E1),
+    negate_coes(T2,E2).
+negate_coes(T,E) => E is -T.
 
 %%
 /*
@@ -73,9 +101,6 @@ parse(InStream,Tokens,VarsMap,Obj) ?=>
 parse(_,end_of_file,_VarsMap,_Obj) => true.
 parse(InStream,[min,':'|Tokens],VarsMap,Obj) => 
     parse_exp(Tokens,[],VarsMap,Exp),
-    compute_lb_ub(Exp,0,LB,0,UB),
-    check_const_overflow(LB),
-    check_const_overflow(UB),        
     Obj = Exp,
     read_pb_cl_tokens(InStream,NextTokens),
     parse(InStream,NextTokens,VarsMap,Obj).
@@ -101,40 +126,113 @@ parse_exp(Tokens,TokensR,_VarsMap,Exp) =>
     TokensR = Tokens,
     Exp = 0.
 
+/*
+extract_coes(A+B,Coes,CoesR) =>
+    extract_coes(A,Coes,Coes1),
+    extract_coes(B,Coes1,CoesR).
+extract_coes(A*X,Coes,CoesR) =>
+    Coes = [A|CoesR].
+extract_coes(_,Coes,CoesR) =>
+    Coes = CoesR.
+*/
+
+/*
+parse_term([Token|Tokens],TokensR,VarsMap,Term) ?=>
+    println($parse_term([Token|Tokens])),fail.
+*/
+parse_term(['~',Var1,'~',Var2|Tokens],TokensR,VarsMap,Term) =>
+    register_nvar(Var1,VarsMap,PicatVar1),
+    register_nvar(Var2,VarsMap,PicatVar2),
+    (Var1 @=< Var2 -> 
+        T1 = Var1, T2 = Var2
+    ;
+        T1 = Var2, T2 = Var1
+    ),
+    Key = $['~'(T1)|'~'(T2)],
+    register_prod(Key,PicatVar1,PicatVar2,VarsMap,Prod),
+    parse_term_aux(Tokens,TokensR,VarsMap,Term,Prod).
+parse_term(['~',Var1,Var2|Tokens],TokensR,VarsMap,Term),
+    Var2 !== '+', Var2 !== '-', Var2 !== '=',  Var2 !== '>='
+ =>
+    register_nvar(Var1,VarsMap,PicatVar1),
+    register_var(Var2,VarsMap,PicatVar2),
+    Key = $['~'(Var1)|Var2],
+    register_prod(Key,PicatVar1,PicatVar2,VarsMap,Prod),
+    parse_term_aux(Tokens,TokensR,VarsMap,Term,Prod).
+parse_term([Var1,'~',Var2|Tokens],TokensR,VarsMap,Term) =>
+    register_var(Var1,VarsMap,PicatVar1),
+    register_nvar(Var2,VarsMap,PicatVar2),
+    Key = $['~'(Var2)|Var1],
+    register_prod(Key,PicatVar1,PicatVar2,VarsMap,Prod),
+    parse_term_aux(Tokens,TokensR,VarsMap,Term,Prod).
 parse_term(['~',Var|Tokens],TokensR,VarsMap,Term) =>
-    IntVar = VarsMap.get(Var,[]),
-    (IntVar == [] ->
-        PicatVar :: 0..1,
-        VarsMap.put(Var,PicatVar)
+    TokensR = Tokens,
+    register_nvar(Var,VarsMap,Term).
+parse_term([Var1,Var2|Tokens],TokensR,VarsMap,Term),
+    Var2 !== '+', Var2 !== '-', Var2 !== '=',  Var2 !== '>='
+ =>
+    register_var(Var1,VarsMap,PicatVar1),
+    register_var(Var2,VarsMap,PicatVar2),
+    (Var1 @=< Var2 -> 
+        T1 = Var1, T2 = Var2
     ;
-        PicatVar = IntVar
+        T1 = Var2, T2 = Var1
     ),
-    (not_followed_by_var(Tokens) ->
-        Term = $(1-PicatVar), TokensR = Tokens
-    ;
-        Term = $(1-PicatVar)*TermR,
-        parse_term(Tokens,TokensR,VarsMap,TermR)
-    ).
+    Key = $[T1|T2],
+    register_prod(Key,PicatVar1,PicatVar2,VarsMap,Prod),
+    parse_term_aux(Tokens,TokensR,VarsMap,Term,Prod).
 parse_term([Var|Tokens],TokensR,VarsMap,Term) =>
+    TokensR = Tokens,
+    register_var(Var,VarsMap,Term).
+
+register_var(Var,VarsMap,PicatVar) =>
     IntVar = VarsMap.get(Var,[]),
     (IntVar == [] ->
         PicatVar :: 0..1,
         VarsMap.put(Var,PicatVar)
     ;
         PicatVar = IntVar
-    ),
-    (not_followed_by_var(Tokens) ->
-        Term = PicatVar, TokensR = Tokens
-    ;
-        Term = $PicatVar*TermR,
-        parse_term(Tokens,TokensR,VarsMap,TermR)
     ).
 
-not_followed_by_var(['='|_]) => true.
-not_followed_by_var(['>='|_]) => true.
-not_followed_by_var([]) => true.
-not_followed_by_var(['+'|_]) => true.
-not_followed_by_var(['-'|_]) => true.
+register_nvar(Var,VarsMap,NPicatVar) =>
+    IntVar = VarsMap.get(Var,[]),
+    (IntVar == [] ->
+        PicatVar :: 0..1,
+        VarsMap.put(Var,PicatVar)
+    ;
+        PicatVar = IntVar
+    ),
+    bp.ic_bool_negated(PicatVar,NPicatVar).
+
+register_prod(Key,PicatVar1,PicatVar2,VarsMap,Prod) =>
+    IntVar = VarsMap.get(Key,[]),
+    (IntVar == [] ->
+        Prod :: 0..1,
+        Prod #= PicatVar1*PicatVar2,
+        VarsMap.put(Key,Prod)
+    ;
+%        writeln($shared(Key)),
+        Prod = IntVar
+    ).
+
+parse_term_aux(Tokens@[],TokensR,VarsMap,Term,Fac) =>
+    Term = Fac, 
+    TokensR = Tokens.
+parse_term_aux(Tokens@['+'|_],TokensR,VarsMap,Term,Fac) =>
+    Term = Fac, 
+    TokensR = Tokens.
+parse_term_aux(Tokens@['-'|_],TokensR,VarsMap,Term,Fac) =>
+    Term = Fac, 
+    TokensR = Tokens.
+parse_term_aux(Tokens@['='|_],TokensR,VarsMap,Term,Fac) =>
+    Term = Fac, 
+    TokensR = Tokens.
+parse_term_aux(Tokens@['>='|_],TokensR,VarsMap,Term,Fac) =>
+    Term = Fac, 
+    TokensR = Tokens.
+parse_term_aux(Tokens,TokensR,VarsMap,Term,Fac) =>
+    Term = $(Fac*TermR),
+    parse_term(Tokens,TokensR,VarsMap,TermR).
 
 % parse_constr(Tokens,VarsMap) ?=> println($parse(Tokens)),nl,fail.
 
@@ -143,15 +241,22 @@ parse_constr(Tokens,VarsMap) =>
     Tokens1 = [Op|Tokens2],
     parse_int(Tokens2,_,C),
     compute_lb_ub(Exp,0,LB,0,UB),
-    check_const_overflow(C),
-    check_const_overflow(LB),
-    check_const_overflow(UB),
+    post_constr(Exp,Op,C,LB,UB).
+
+post_constr(Exp,Op,C,LB,UB) ?=>
+    not_const_overflow(C), not_const_overflow(LB), not_const_overflow(UB),!,
+%    printf("post %w %w %w\n",Exp,Op,C),
     (Op == '=' ->
-    
         Exp #= C
     ;
         Exp #>= C
     ).
+post_constr(Exp,Op,C,LB,UB) =>
+    separate_terms(Exp,PTerms,[],NTerms,[],0,Const),
+    bv_sum(PTerms,PSum),
+    bv_sum(NTerms,NSum),
+    C1 is C-Const,
+    post_bv_constr(Op,PSum,NSum,C1).
 
 parse_int(['+',I|Tokens],TokensR,C) => C = I, TokensR = Tokens.
 parse_int(['-',I|Tokens],TokensR,C) => C = -I, TokensR = Tokens.
@@ -182,7 +287,7 @@ w_space('\n').
 w_space('\t').
 w_space('\r').
 
-read_pb_cl_tokens(_InStream,end_of_file,_,Tokens) => Tokens=end_of_file.     % end-of-file
+read_pb_cl_tokens(_InStream,end_of_file,_,Tokens) => Tokens = end_of_file.     % end-of-file
 read_pb_cl_tokens(_InStream,punctuation,';',Tokens) => 
     Tokens = [].
 read_pb_cl_tokens(InStream,_Type,Token,Tokens) =>                   
@@ -196,10 +301,12 @@ output_sol(List,0) =>
     nl,
     print('v '),
     output_sol(List,10).
-output_sol([V=Val|List],NumItems) =>
+output_sol([V=Val|List],NumItems), atom(V) =>
     if (Val == 0) then  print('~') end,
     print(V), print(' '),
     output_sol(List,NumItems-1).
+output_sol([_|List],NumItems) =>
+    output_sol(List,NumItems).
 
 compute_lb_ub(X+Y,LB0,LB,UB0,UB) =>
     compute_lb_ub(X,0,LBx,0,UBx),
@@ -222,14 +329,207 @@ compute_lb_ub(-X,LB0,LB,UB0,UB) =>
     LB is -UBx,
     UB is -LBx.
 compute_lb_ub(X,LB0,LB,UB0,UB), integer(X) =>
-    check_const_overflow(X),
     LB is LB0+X,
     UB is UB0+X.
 compute_lb_ub(X,LB0,LB,UB0,UB) =>   % must be a var
     LB is LB0,
     UB is UB0+1.
 
-check_const_overflow(C), C >= -72057594037927935, C <= 72057594037927935 => true.
-check_const_overflow(C) =>
-    println("s UNSUPPORTED"),
-    halt.
+% not_const_overflow(C) => fail.
+not_const_overflow(C) =>
+    C >= -72057594037927935, 
+    C <= 72057594037927935.
+
+
+/*    
+% enforce interval consistency on the constraint: Exp Op C
+%
+enforce_ic(Exp,Op,C) =>
+    Const0 is -C,
+    extract_terms(Exp,Terms,[],Const0,Const1),
+    enforce_ic_aux(Const1,Terms,Op).
+
+extract_terms(Exp1+Exp2,Terms,TermsR,Const0,Const) =>
+    extract_terms(Exp1,Terms,Terms1,Const0,Const1),
+    extract_terms(Exp2,Terms1,TermsR,Const1,Const).
+extract_terms(C*T,Terms,TermsR,Const0,Const) =>
+    Terms = [(C,T)|TermsR],
+    Const = Const0.
+extract_terms(T,Terms,TermsR,Const0,Const), integer(T) =>
+    Const is Const0+T,
+    Terms = TermsR.
+extract_terms(T,Terms,TermsR,Const0,Const) =>
+    Terms = [(1,T)|TermsR],
+    Const = Const0.
+
+% Const+sum(Terms) Op 0
+enforce_ic_aux(Const,[],Op) => true.
+enforce_ic_aux(Const,[_],Op) => true.
+enforce_ic_aux(Const,Terms,Op) =>
+    TermA = to_array(Terms),
+    N = len(TermA),
+    ForwardLB = new_array(N),
+    ForwardUB = new_array(N),
+    pb_term_lb_ub(Const,Const,TermA[1],ForwardLB[1],ForwardUB[1]),
+    foreach (I in 2..N)
+        pb_term_lb_ub(ForwardLB[I-1],ForwardUB[I-1],TermA[I],ForwardLB[I],ForwardUB[I])
+    end,
+    BackwardLB = new_array(N),
+    BackwardUB = new_array(N),
+    pb_term_lb_ub(0,0,TermA[N],BackwardLB[N],BackwardUB[N]),
+    foreach (I in (N-1)..(-1)..1)
+        pb_term_lb_ub(BackwardLB[I+1],BackwardUB[I+1],TermA[I],BackwardLB[I],BackwardUB[I])
+    end,
+    pb_term_reduce(Op,TermA[1],Const,Const,BackwardLB[2],BackwardUB[2]),
+    pb_term_reduce(Op,TermA[N],ForwardLB[N-1],ForwardUB[N-1],0,0),
+    foreach (I in 2..N-1)
+        pb_term_reduce(Op,TermA[I],ForwardLB[I-1],ForwardUB[I-1],BackwardLB[I+1],BackwardUB[I+1])
+    end.
+
+pb_term_lb_ub(LB0,UB0,(C,X),LB1,UB1) =>
+    (C >= 0 ->
+        LB1 = LB0,
+        UB1 is UB0+C
+    ;
+        LB1 is LB0+C,
+        UB1 = UB0
+    ).
+
+% sum(Terms0)+C*X+sum(Terms1) Op 0
+% where sum(Terms0) in LB0..UB0 and sum(Terms) in LB1..UB1
+%
+pb_term_reduce('=',(C,X),LB0,UB0,LB1,UB1) =>
+     Min is LB0+LB1,
+     Max is UB0+UB1,
+    (Min =< 0, Max >= 0 -> true; bind_term(X,1)),
+    (Min+C =< 0, Max+C >= 0 -> true; bind_term(X,0)).
+pb_term_reduce('>=',(C,X),LB0,UB0,LB1,UB1) =>
+     Max is UB0+UB1,
+    (C > 0 ->
+        Max+C >= 0,
+        (Max >= 0 -> true; bind_term(X,1))
+    ;
+        Max >= 0,
+        (Max+C >= 0 -> true; bind_term(X,0))
+    ).
+
+% bind_term(T,Val) ?=> writeln($bind(T,Val)),fail.
+bind_term(X*Y,1) =>
+    bind_term(X,1),
+    bind_term(Y,1).
+bind_term(X,Val) =>
+    (var(X) -> X = Val; true).
+
+*/
+% PVect Op NVect+C
+%
+
+separate_terms(Exp,PTerms,PTermsR,NTerms,NTermsR,Const0,Const),integer(Exp) =>
+    Const is Const0+Exp,
+    PTerms = PTermsR,
+    NTerms = NTermsR.
+separate_terms(Exp1+Exp2,PTerms,PTermsR,NTerms,NTermsR,Const0,Const) =>
+    separate_terms(Exp1,PTerms,PTerms1,NTerms,NTerms1,Const0,Const1),
+    separate_terms(Exp2,PTerms1,PTermsR,NTerms1,NTermsR,Const1,Const).
+separate_terms(C*T,PTerms,PTermsR,NTerms,NTermsR,Const0,Const) =>
+    flatten_term_to_var(T,X),   % X could be integer
+    (integer(X) ->
+        Const is Const0+X,
+        PTerms = PTermsR,
+        NTerms = NTermsR
+    ;
+        Const = Const0,
+        (C > 0 ->
+            PTerms = [(C,X)|PTermsR],
+            NTerms = NTermsR
+        ;C == 0 ->
+            PTerms = PTermsR,
+            NTerms = NTermsR
+        ;
+            PTerms = PTermsR,
+            NTerms = [(-C,X)|NTermsR]
+        )
+    ).
+
+flatten_term_to_var(A*B,Var) =>
+    flatten_term_to_var(A,Fa),
+    flatten_term_to_var(B,Fb),
+    (integer(Fa), integer(Fb) ->
+        Var is Fa*Fb
+    ;
+        Var :: 0..1,
+        Fa*Fb #= Var
+    ).
+flatten_term_to_var(A,Var) =>
+    Var = A.
+
+
+% BV1-BV2 Op C
+/*
+post_bv_constr(Op,BV1,BV2,C) ?=>
+    println($post_bv_constr(Op,BV1,BV2,C)),fail.
+*/
+post_bv_constr(Op,0,BV2,C) =>
+    post_bv_constr(Op,{0},BV2,C).
+post_bv_constr(Op,BV1,0,C) =>
+    post_bv_constr(Op,BV1,{0},C).
+post_bv_constr('=',{0},{0},C) =>
+    C == 0.
+post_bv_constr('=',BV1,{0},C) =>
+    (C >= 0 ->
+        bp.sat_dec_to_bin(C,BVC),
+        bp.sat_propagate_equiv_bits_in_vects(BV1,BVC)
+    ;
+        fail
+    ).
+post_bv_constr('=',{0},BV1,C) =>
+    (C =< 0 ->
+        MC is -C,
+        bp.sat_dec_to_bin(MC,BVC),
+        bp.sat_propagate_equiv_bits_in_vects(BV1,BVC)
+    ;
+        fail
+    ).
+post_bv_constr('=',BV1,BV2,C) =>
+    (C == 0 ->
+        bp.sat_propagate_equiv_bits_in_vects(BV1,BV2)
+    ;C > 0 ->
+        bp.sat_dec_to_bin(C,BVC),    
+        bp.ic_add_unsigned(BV2,BVC,BV1)
+    ;
+        MC is -C,
+        bp.sat_dec_to_bin(MC,BVC),
+        bp.ic_add_unsigned(BV1,BVC,BV2)
+    ).
+%
+post_bv_constr('>=',{0},{0},C) =>
+    0 >= C.
+post_bv_constr('>=',BV1,{0},C) =>
+    (C > 0 ->
+        bp.sat_dec_to_bin(C,BVC),
+        bp.ic_ge_unsigned(BV1,BVC)
+    ;
+        true     % trivial
+    ).
+post_bv_constr('>=',{0},BV1,C) =>
+    (C =< 0 ->
+        MC is -C,
+        bp.sat_dec_to_bin(MC,BVC),
+        bp.ic_ge_unsigned(BVC,BV1)
+    ;
+        fail
+    ).
+post_bv_constr('>=',BV1,BV2,C) =>
+    (C == 0 ->
+        bp.ic_ge_unsigned(BV1,BV2)
+    ;C > 0 ->
+        bp.sat_dec_to_bin(C,BVC),
+        bp.sat_add_unsigned_to_tmp_var(BV2,BVC,BV3),
+        bp.ic_ge_unsigned(BV1,BV3)
+    ;
+        MC is -C,
+        bp.sat_dec_to_bin(MC,BVC),
+        bp.sat_add_unsigned_to_tmp_var(BV1,BVC,BV3),
+        bp.ic_ge_unsigned(BV3,BV2)
+    ).
+
