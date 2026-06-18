@@ -62,13 +62,11 @@ pb_aux(Obj,List), var(Obj) =>
 pb_aux(Obj,List) ?=> 
     all_coes_negative(Obj),!,
     negate_coes(Obj,Obj1),
-%    ReportCall = $(eval_obj(Obj1,0,Res), ObjVal is -Res, printf("o %w\n",ObjVal)),
     ReportCall = $(ObjVal is -Obj1, printf("o %w\n",ObjVal)),
     solve($[max(Obj1), report(ReportCall)],List),!,
     println("s OPTIMUM FOUND"),
     output_sol(List).
 pb_aux(Obj,List) => 
-%    ReportCall = $(eval_obj(Obj,0,ObjVal), printf("o %w\n",ObjVal)),
     ReportCall = $(ObjVal is Obj, printf("o %w\n",ObjVal)),
     solve($[min(Obj), report(ReportCall)],List),!,
     println("s OPTIMUM FOUND"),
@@ -340,87 +338,6 @@ not_const_overflow(C) =>
     C >= -72057594037927935, 
     C <= 72057594037927935.
 
-
-/*    
-% enforce interval consistency on the constraint: Exp Op C
-%
-enforce_ic(Exp,Op,C) =>
-    Const0 is -C,
-    extract_terms(Exp,Terms,[],Const0,Const1),
-    enforce_ic_aux(Const1,Terms,Op).
-
-extract_terms(Exp1+Exp2,Terms,TermsR,Const0,Const) =>
-    extract_terms(Exp1,Terms,Terms1,Const0,Const1),
-    extract_terms(Exp2,Terms1,TermsR,Const1,Const).
-extract_terms(C*T,Terms,TermsR,Const0,Const) =>
-    Terms = [(C,T)|TermsR],
-    Const = Const0.
-extract_terms(T,Terms,TermsR,Const0,Const), integer(T) =>
-    Const is Const0+T,
-    Terms = TermsR.
-extract_terms(T,Terms,TermsR,Const0,Const) =>
-    Terms = [(1,T)|TermsR],
-    Const = Const0.
-
-% Const+sum(Terms) Op 0
-enforce_ic_aux(Const,[],Op) => true.
-enforce_ic_aux(Const,[_],Op) => true.
-enforce_ic_aux(Const,Terms,Op) =>
-    TermA = to_array(Terms),
-    N = len(TermA),
-    ForwardLB = new_array(N),
-    ForwardUB = new_array(N),
-    pb_term_lb_ub(Const,Const,TermA[1],ForwardLB[1],ForwardUB[1]),
-    foreach (I in 2..N)
-        pb_term_lb_ub(ForwardLB[I-1],ForwardUB[I-1],TermA[I],ForwardLB[I],ForwardUB[I])
-    end,
-    BackwardLB = new_array(N),
-    BackwardUB = new_array(N),
-    pb_term_lb_ub(0,0,TermA[N],BackwardLB[N],BackwardUB[N]),
-    foreach (I in (N-1)..(-1)..1)
-        pb_term_lb_ub(BackwardLB[I+1],BackwardUB[I+1],TermA[I],BackwardLB[I],BackwardUB[I])
-    end,
-    pb_term_reduce(Op,TermA[1],Const,Const,BackwardLB[2],BackwardUB[2]),
-    pb_term_reduce(Op,TermA[N],ForwardLB[N-1],ForwardUB[N-1],0,0),
-    foreach (I in 2..N-1)
-        pb_term_reduce(Op,TermA[I],ForwardLB[I-1],ForwardUB[I-1],BackwardLB[I+1],BackwardUB[I+1])
-    end.
-
-pb_term_lb_ub(LB0,UB0,(C,X),LB1,UB1) =>
-    (C >= 0 ->
-        LB1 = LB0,
-        UB1 is UB0+C
-    ;
-        LB1 is LB0+C,
-        UB1 = UB0
-    ).
-
-% sum(Terms0)+C*X+sum(Terms1) Op 0
-% where sum(Terms0) in LB0..UB0 and sum(Terms) in LB1..UB1
-%
-pb_term_reduce('=',(C,X),LB0,UB0,LB1,UB1) =>
-     Min is LB0+LB1,
-     Max is UB0+UB1,
-    (Min =< 0, Max >= 0 -> true; bind_term(X,1)),
-    (Min+C =< 0, Max+C >= 0 -> true; bind_term(X,0)).
-pb_term_reduce('>=',(C,X),LB0,UB0,LB1,UB1) =>
-     Max is UB0+UB1,
-    (C > 0 ->
-        Max+C >= 0,
-        (Max >= 0 -> true; bind_term(X,1))
-    ;
-        Max >= 0,
-        (Max+C >= 0 -> true; bind_term(X,0))
-    ).
-
-% bind_term(T,Val) ?=> writeln($bind(T,Val)),fail.
-bind_term(X*Y,1) =>
-    bind_term(X,1),
-    bind_term(Y,1).
-bind_term(X,Val) =>
-    (var(X) -> X = Val; true).
-
-*/
 % PVect Op NVect+C
 %
 
